@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using PayMaster.DTO;
 using PayMaster.Interface;
 using PayMaster.Models;
+using System.Security.Claims;
 
 namespace PayMaster.Controllers
 {
@@ -55,6 +56,12 @@ namespace PayMaster.Controllers
             payroll.VerifiedDate = DateTime.Now;
 
             _context.Payrolls.Update(payroll);
+            await _adminRepo.GenerateAuditLogAsync(new AuditLogDto
+            {
+                UserId = userId,
+                Action = "Verify Payroll",
+                Description = $"Payroll verified for EmployeeId={payroll.EmployeeId}, Month={payroll.Month}, Year={payroll.Year} by {userId}"
+            });
             await _context.SaveChangesAsync();
 
             return Ok(new { Message = "Payroll verified." });
@@ -71,7 +78,12 @@ namespace PayMaster.Controllers
             payroll.IsPaid = true;
             payroll.PaidDate = DateTime.Now;
             payroll.PaymentMode = mode;
-
+            await _adminRepo.GenerateAuditLogAsync(new AuditLogDto
+            {
+                UserId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value),
+                Action = "Paid Payroll",
+                Description = $"Payroll is Paid for EmployeeId={payroll.EmployeeId}, Month={payroll.Month}, Year={payroll.Year}"
+            });
             await _context.SaveChangesAsync();
             return Ok(new { Message = "Payment processed." });
         }

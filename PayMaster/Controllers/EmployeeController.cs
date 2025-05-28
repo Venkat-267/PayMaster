@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using PayMaster.DTO;
 using PayMaster.Interface;
+using PayMaster.Models;
 using System.Security.Claims;
 
 namespace PayMaster.Controllers
@@ -12,9 +13,11 @@ namespace PayMaster.Controllers
     public class EmployeeController : ControllerBase
     {
         private readonly IEmployeeRepository _employeeRepo;
-        public EmployeeController(IEmployeeRepository employeeRepo)
+        private readonly IAdminRepository _adminRepo;
+        public EmployeeController(IEmployeeRepository employeeRepo, IAdminRepository adminRepo)
         {
             _employeeRepo = employeeRepo;
+            _adminRepo = adminRepo;
         }
 
         [Authorize(Roles = "Admin, Manager, HR-Manager")]
@@ -24,6 +27,12 @@ namespace PayMaster.Controllers
             try
             {
                 var empId = await _employeeRepo.AddEmployee(dto);
+                await _adminRepo.GenerateAuditLogAsync(new AuditLogDto
+                {
+                    UserId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value),
+                    Action = "Create Employee",
+                    Description = $"Employee {empId} has been created"
+                });
                 return Ok(new { Message = "Employee added", EmployeeId = empId });
             }
             catch (Exception ex)
@@ -63,6 +72,12 @@ namespace PayMaster.Controllers
         {
             var success = await _employeeRepo.UpdateEmployee(employeeId, dto);
             if (!success) return NotFound(new { Error = "Employee not found" });
+            await _adminRepo.GenerateAuditLogAsync(new AuditLogDto
+            {
+                UserId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value),
+                Action = "Update Employee",
+                Description = $"Employee {employeeId} has been updated"
+            });
             return Ok(new { Message = "Employee updated" });
         }
 
@@ -75,7 +90,12 @@ namespace PayMaster.Controllers
             var success = await _employeeRepo.UpdatePersonalInfo(userId, dto);
             if (!success)
                 return NotFound(new { Error = "Employee not found" });
-
+            await _adminRepo.GenerateAuditLogAsync(new AuditLogDto
+            {
+                UserId = userId,
+                Action = "Update Employee",
+                Description = $"Employee {userId} has been updated"
+            });
             return Ok(new { Message = "Personal information updated successfully." });
         }
     }

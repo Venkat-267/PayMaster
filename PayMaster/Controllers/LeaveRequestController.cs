@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using PayMaster.DTO;
 using PayMaster.Interface;
+using PayMaster.Models;
+using System.Security.Claims;
 
 namespace PayMaster.Controllers
 {
@@ -23,6 +25,12 @@ namespace PayMaster.Controllers
         public async Task<IActionResult> Submit(LeaveRequestDto dto)
         {
             var leaveId = await _leaveRepo.SubmitLeaveRequest(dto);
+            await _adminRepo.GenerateAuditLogAsync(new AuditLogDto
+            {
+                UserId = dto.EmployeeId,
+                Action = "Leave Request",
+                Description = $"Employee {dto.EmployeeId} has requested leave"
+            });
             return Ok(new { Message = "Leave Request Submitted", LeaveId = leaveId });
         }
 
