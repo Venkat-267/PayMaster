@@ -104,6 +104,36 @@ namespace PayMaster.Repository
             };
         }
 
+        public async Task<bool> VerifyPayrollAsync(int payrollId, int userId)
+        {
+            var payroll = await _context.Payrolls.FindAsync(payrollId);
+            if (payroll == null) return false;
+
+            payroll.IsVerified = true;
+            payroll.VerifiedBy = userId;
+            payroll.VerifiedDate = DateTime.Now;
+
+            _context.Payrolls.Update(payroll);
+            await _context.SaveChangesAsync();
+
+            return true;
+        }
+
+        public async Task<bool> MarkPayrollAsPaidAsync(int payrollId, string paymentMode, int paidByUserId)
+        {
+            var payroll = await _context.Payrolls.FindAsync(payrollId);
+            if (payroll == null || !payroll.IsVerified)
+                return false;
+
+            payroll.IsPaid = true;
+            payroll.PaidDate = DateTime.Now;
+            payroll.PaymentMode = paymentMode;
+
+            await _context.SaveChangesAsync();
+
+            return true;
+        }
+
         public async Task<PayrollDto> GetPayrollByEmployeeAndMonthAsync(int employeeId, int month, int year)
         {
             var payroll = await _context.Payrolls

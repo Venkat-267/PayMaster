@@ -14,13 +14,11 @@ namespace PayMaster.Controllers
     {
         private readonly IPayrollRepository _payrollRepo;
         private readonly IAdminRepository _adminRepo;
-        private readonly PayMasterDbContext _context;
 
-        public PayrollController(IPayrollRepository payrollRepo, IAdminRepository adminRepo, PayMasterDbContext context)
+        public PayrollController(IPayrollRepository payrollRepo, IAdminRepository adminRepo)
         {
             _payrollRepo = payrollRepo;
             _adminRepo = adminRepo;
-            _context = context;
         }
 
         [Authorize(Roles = "Admin,Payroll-Processor")]
@@ -44,25 +42,19 @@ namespace PayMaster.Controllers
             }
         }
 
-        [Authorize(Roles = "Admin,Payroll-Processor, Manager")]
+        [Authorize(Roles = "Admin,Payroll-Processor,Manager")]
         [HttpPost("verify/{payrollId}")]
         public async Task<IActionResult> VerifyPayroll(int payrollId, [FromQuery] int userId)
         {
-            var payroll = await _context.Payrolls.FindAsync(payrollId);
-            if (payroll == null) return NotFound();
+            var success = await _payrollRepo.VerifyPayrollAsync(payrollId, userId);
+            if (!success) return NotFound();
 
-            payroll.IsVerified = true;
-            payroll.VerifiedBy = userId;
-            payroll.VerifiedDate = DateTime.Now;
-
-            _context.Payrolls.Update(payroll);
             await _adminRepo.GenerateAuditLogAsync(new AuditLogDto
             {
                 UserId = userId,
                 Action = "Verify Payroll",
-                Description = $"Payroll verified for EmployeeId={payroll.EmployeeId}, Month={payroll.Month}, Year={payroll.Year} by {userId}"
+                Description = $"Payroll verified with ID={payrollId} by UserId={userId}"
             });
-            await _context.SaveChangesAsync();
 
             return Ok(new { Message = "Payroll verified." });
         }
@@ -71,22 +63,20 @@ namespace PayMaster.Controllers
         [HttpPost("mark-paid/{payrollId}")]
         public async Task<IActionResult> MarkPayrollAsPaid(int payrollId, [FromQuery] string mode)
         {
-            var payroll = await _context.Payrolls.FindAsync(payrollId);
-            if (payroll == null || !payroll.IsVerified)
-                return BadRequest("Payroll not found or not verified.");
+            int userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+            var success = await _payrollRepo.MarkPayrollAsPaidAsync(payrollId, mode, userId);
+            if (!success) return BadRequest("Payroll not found or not verified.");
 
-            payroll.IsPaid = true;
-            payroll.PaidDate = DateTime.Now;
-            payroll.PaymentMode = mode;
             await _adminRepo.GenerateAuditLogAsync(new AuditLogDto
             {
-                UserId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value),
+                UserId = userId,
                 Action = "Paid Payroll",
-                Description = $"Payroll is Paid for EmployeeId={payroll.EmployeeId}, Month={payroll.Month}, Year={payroll.Year}"
+                Description = $"Payroll marked as paid with ID={payrollId} by UserId={userId}"
             });
-            await _context.SaveChangesAsync();
+
             return Ok(new { Message = "Payment processed." });
         }
+
         [Authorize(Roles = "Admin,Payroll-Processor,Employee,Manager")]
         [HttpGet("{employeeId}/{month}/{year}")]
         public async Task<IActionResult> GetByMonth(int employeeId, int month, int year)
