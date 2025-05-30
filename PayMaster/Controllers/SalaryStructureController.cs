@@ -17,7 +17,7 @@ namespace PayMaster.Controllers
             _salaryRepo = salaryRepo;
         }
 
-        [Authorize(Roles = "Manager, Payroll-Processor")]
+        [Authorize(Roles = "Admin, Manager, Payroll-Processor")]
         [HttpPost("assign")]
         public async Task<IActionResult> Assign(SalaryStructureDto dto)
         {
@@ -25,7 +25,7 @@ namespace PayMaster.Controllers
             return Ok(new { Message = "Salary structure assigned", SalaryId = salaryId });
         }
 
-        [Authorize(Roles = "Manager,Employee, Payroll-Processor")]
+        [Authorize(Roles = "Admin, Manager,Employee, Payroll-Processor")]
         [HttpGet("current/{employeeId}")]
         public async Task<IActionResult> GetCurrent(int employeeId)
         {
