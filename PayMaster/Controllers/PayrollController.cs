@@ -61,16 +61,17 @@ namespace PayMaster.Controllers
 
         [Authorize(Roles = "Admin,Payroll-Processor")]
         [HttpPost("mark-paid/{payrollId}")]
-        public async Task<IActionResult> MarkPayrollAsPaid(int payrollId, int approverId, [FromQuery] string mode)
+        public async Task<IActionResult> MarkPayrollAsPaid(int payrollId, [FromQuery] string mode)
         {
-            var success = await _payrollRepo.MarkPayrollAsPaidAsync(payrollId, mode, approverId);
+            int userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+            var success = await _payrollRepo.MarkPayrollAsPaidAsync(payrollId, mode, userId);
             if (!success) return BadRequest("Payroll not found or not verified.");
 
             await _adminRepo.GenerateAuditLogAsync(new AuditLogDto
             {
-                UserId = approverId,
+                UserId = userId,
                 Action = "Paid Payroll",
-                Description = $"Payroll marked as paid with ID={payrollId} by UserId={approverId}"
+                Description = $"Payroll marked as paid with ID={payrollId} by UserId={userId}"
             });
 
             return Ok(new { Message = "Payment processed." });
