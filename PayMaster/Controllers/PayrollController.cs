@@ -47,7 +47,7 @@ namespace PayMaster.Controllers
         public async Task<IActionResult> VerifyPayroll(int payrollId, [FromQuery] int userId)
         {
             var success = await _payrollRepo.VerifyPayrollAsync(payrollId, userId);
-            if (!success) return NotFound();
+            if (!success) return BadRequest("Payroll doesn't exist or already verified.");
 
             await _adminRepo.GenerateAuditLogAsync(new AuditLogDto
             {

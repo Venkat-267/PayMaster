@@ -107,7 +107,7 @@ namespace PayMaster.Repository
         public async Task<bool> VerifyPayrollAsync(int payrollId, int userId)
         {
             var payroll = await _context.Payrolls.FindAsync(payrollId);
-            if (payroll == null) return false;
+            if (payroll == null || payroll.IsVerified == true) return false;
 
             payroll.IsVerified = true;
             payroll.VerifiedBy = userId;
